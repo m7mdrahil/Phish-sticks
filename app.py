@@ -124,7 +124,7 @@ def scan_url(url):
     vt_url= "https://www.virustotal.com/api/v3/urls/" + analysis_key
     headers = {
     "accept": "application/json",
-    "x-apikey": "4acc3e328803909ab25e70a226e7bfee7050854b32178bfb82fa64d9141f4f2a"
+    "x-apikey": "VT_API_KEY"
     }
     response = requests.get(vt_url, headers=headers)
     response = str(response.json())
