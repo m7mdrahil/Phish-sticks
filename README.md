@@ -1,30 +1,27 @@
 Phish Sticks
 
-Phish Sticks is a Python application that scans URLs in EML files using VirusTotal API to check if they are phishing links or not.
-Prerequisites
+Phish Sticks is a Python application that scans phishing emails for malicious URLs using the VirusTotal API. The application is built using the wx Python GUI toolkit and the vt VirusTotal API client library.
+Features
 
-    Python 3.x
-    wxPython
-    requests
-    VirusTotal API key
+The application provides the following features:
 
-Installation
-
-    Clone this repository to your local machine.
-
-    Install the required packages using pip.
-
-    pip install wxpython requests vt
-
-    Replace the VT_API_KEY in the code with your VirusTotal API key.
+    Browse and select an EML file (email message file) to scan for malicious URLs
+    Display the subject line of the selected EML file
+    Display all URLs in the EML file's body, including those encoded in HTML, and those with the "url" parameter
+    Scan each URL using the VirusTotal API, display the VirusTotal analysis statistics for each URL, and indicate whether the URL redirects to another URL
+    Copy the subject line, URL, or phishing-forward text to the clipboard with a single click
 
 Usage
 
-    Run the phish_sticks.py file.
-    Browse for an EML file.
-    Click on the Get URLs button to extract URLs from the EML file.
-    Click on a URL to scan it using VirusTotal.
-    The scan results will be displayed on the right side of the application.
-    You can click on the Copy Link button to copy the URL to the clipboard.
-    You can click on the Copy Subject button to copy the subject of the EML file to the clipboard.
-    You can click on the Phish Forward button to copy a message to the clipboard that can be used to forward the EML file to someone with a warning that it may contain phishing links.
+To use Phish Sticks, you'll need to do the following:
+
+    Get a VirusTotal API key by signing up for a free VirusTotal Community account at https://www.virustotal.com/gui/join-us
+    Replace the VT_API_KEY placeholder with your VirusTotal API key in the vt_api_key variable at the beginning of the phish_sticks.py file
+    Install the required Python packages listed in the requirements.txt file using pip install -r requirements.txt
+    Run the application by executing the phish_sticks.py file
+
+How it works
+
+Phish Sticks works by using the email Python library to parse the selected EML file, and extracting the URLs from the email body using regular expressions. The application then uses the VirusTotal API to scan each URL and retrieve the analysis statistics for each one. If the URL redirects to another URL, Phish Sticks will scan the final URL and retrieve the analysis statistics for that URL as well.
+
+Once the analysis statistics are retrieved, Phish Sticks displays them in the application's GUI, along with an indication of whether the URL redirects to another URL. The user can then copy the URL, subject line, or phishing-forward text to the clipboard with a single click.
