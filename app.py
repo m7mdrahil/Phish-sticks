@@ -5,6 +5,7 @@ from urllib.parse import unquote
 import pyperclip
 from email.parser import BytesParser
 from email import policy
+import email
 import vt
 import requests
 import base64
@@ -12,83 +13,81 @@ import base64
 vt_api_key = 'VT_API_KEY'
 client = vt.Client(vt_api_key)
 
-
-def get_email_content():
-
-    text=""
-    print(MainFrame.eml_path)
-
-    eml_files = glob.glob(MainFrame.eml_path) # get all .eml files in a list
-    for eml_file in eml_files:
-        with open(eml_file, 'rb') as fp:  # select a specific email file from the list
-            name = fp.name # Get file name
-            msg = BytesParser(policy=policy.default).parse(fp)
-        #text = msg.get_body(preferencelist=('plain')).get_content()
-        text = msg.get_body(preferencelist=('related', 'html', 'plain')).get_content()
-        fp.close()
-        text = text.split("\n")
-    #print (name) # Get name of eml file
-    #print (text) # Get list of all text in email
-    email_contents = str(text)
-
-    #email_contents = ""
-
-    return email_contents
-
-
 def phish_fwd_cp():
-    result = "Phish-forward: FW:" + get_eml_subject()
+    result = "Phish-forward: " + get_eml_subject(MainFrame.eml_path)
     pyperclip.copy(result)
     spam = pyperclip.paste()
     print(spam)
     pass
 
-def get_eml_subject():
+def copy_subject():
+    result = get_eml_subject(MainFrame.eml_path)
+    pyperclip.copy(result)
+    spam = pyperclip.paste()
+    print(spam)
+    pass
 
-    text = get_email_content()
-    text = str(text)
-    if (text.find("Subject:")) != -1:
-        eml_subject = text[text.find("Subject:")+8:text.find(", \'",text.find("Subject:"))-1]
-    else:
-        eml_subject = ""
+def get_eml_subject(eml_path):
+
+    eml_subject = ""
+    if eml_path == "":
+        return eml_subject
+
+    with open(eml_path, 'rb') as eml_file:
+        # Parse the EML file using the email library
+        msg = email.message_from_bytes(eml_file.read())
+
+        # Get the subject line from the message headers
+        eml_subject = msg['Subject']
+
+        # Print the subject line
+        print('Subject:', eml_subject)
+    if eml_subject == "":
+        eml_subject = "FW:"
 
     return eml_subject
 
 
 def get_urls():
-    url_list = [""]
-    link_list = re.findall(r'(https?://\S+)', str(get_email_content()))
-    
-    for url in link_list:
-        start_pointer = -1
-        end_pointer = -1
-        if (max([url.find('<'),url.find('[')]) != -1):
-            start_pointer = max([url.find('<'),url.find('[')])
-        if (max([url.find('>'),url.find(']')]) != -1):
-            end_pointer = max([url.find('>'),url.find(']')])
-        
-        char_list = ['\'', '"', '\r', ',', ';', ')', '(', '}', '{']
-        for char in char_list:
-            url = url.replace(char,'')
-        if end_pointer == -1:
-            url = url[start_pointer+1:end_pointer] + url[end_pointer]
-        else:
-            url = url[start_pointer+1:end_pointer]
-        url_list.append(url)
-    url_list.pop(0)
 
     cleaned_urls = [""]
 
-    for url in url_list:
-        if url.find("url=") != -1:
-            url = url[url.find("url=")+4:url.find("&data",url.find("url="))]
-            url = unquote(url)
-        if url not in cleaned_urls:
-            cleaned_urls.append(url)
+    if MainFrame.eml_path != '':
+        with open(MainFrame.eml_path, 'rb') as eml_file:
+            msg = email.message_from_bytes(eml_file.read())
+            if msg.is_multipart():
+            # If the message is multipart, iterate over the parts to find the plain text body
+                for part in msg.walk():
+                    if part.get_content_type() == 'text/plain':
+                        body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                        break
+            else:
+                # If the message is not multipart, the message body is in the main message
+                body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
+
+            print(body)
+
+            url_regex = r'(https?://[^\s<>"]+|www\.[^\s<>"]+)'
+        
+            url_list = re.findall(url_regex, body)
+            url_list = [re.sub(r'[>\]]$', '', url) for url in url_list]
+            url_list=list(set(url_list))
+    
+            cleaned_urls = [""]
+            print(url_list)
+
+            for url in url_list:
+                if url.find("url=") != -1:
+                    url = url[url.find("url=")+4:url.find("&data",url.find("url="))]
+                    url = unquote(url)
+                if url not in cleaned_urls:
+                    cleaned_urls.append(url)
+    
     cleaned_urls.pop(0)
     #MainFrame.__init__(MainFrame.__init__.self, title="Phish Curry")
-
     return cleaned_urls
+
+
 
 def get_response(url):
     
@@ -124,7 +123,7 @@ def scan_url(url):
     vt_url= "https://www.virustotal.com/api/v3/urls/" + analysis_key
     headers = {
     "accept": "application/json",
-    "x-apikey": "VT_API_KEY"
+    "x-apikey": f"{vt_api_key}"
     }
     response = requests.get(vt_url, headers=headers)
     response = str(response.json())
@@ -145,7 +144,7 @@ class MainFrame(wx.Frame):
         
         # Create top sizer for email subject
         top_sizer = wx.BoxSizer(wx.VERTICAL)
-        subject_label = wx.StaticText(self.panel, label='Subject:' + get_eml_subject())
+        subject_label = wx.StaticText(self.panel, label='Subject:' + get_eml_subject(MainFrame.eml_path))
         subject_label.SetFont(wx.Font(wx.FontInfo(12).Bold()))
         subject_label.SetForegroundColour((200, 200, 200)) # light grey
         top_sizer.Add(subject_label, 0, wx.ALL, 5)
@@ -157,12 +156,20 @@ class MainFrame(wx.Frame):
         browse_button.Bind(wx.EVT_BUTTON, lambda event: self.define_path()) 
         top_sizer.Add(browse_button, 0, wx.ALL, 5)
 
+        subject_button = wx.Button(self.panel, label='Copy Subject', size=(150, -1))
+        subject_button.SetFont(wx.Font(wx.FontInfo(12)))
+        subject_button.SetForegroundColour((200, 200, 200)) # light grey
+        subject_button.SetBackgroundColour((30, 30, 30)) # dark grey
+        subject_button.Bind(wx.EVT_BUTTON, lambda event: copy_subject()) #does the work
+        top_sizer.Add(subject_button, 0, wx.ALL, 5)
+
         phishfwd_button = wx.Button(self.panel, label='Copy phish-fwd', size=(150, -1))
         phishfwd_button.SetFont(wx.Font(wx.FontInfo(12)))
         phishfwd_button.SetForegroundColour((200, 200, 200)) # light grey
         phishfwd_button.SetBackgroundColour((30, 30, 30)) # dark grey
         phishfwd_button.Bind(wx.EVT_BUTTON, lambda event: phish_fwd_cp()) #does the work
         top_sizer.Add(phishfwd_button, 0, wx.ALL, 5)
+
 
         self.panel.SetSizer(top_sizer)
 
